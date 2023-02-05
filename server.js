@@ -11,11 +11,11 @@ if (process.env.IS_TEST === "true") {
 
 const app = require("./app");
 
-const config = process.env.CONFIG;
-
+const config = JSON.parse(process.env.CONFIG);
+console.log(config);
 try {
-  http.createServer(app).listen(config.serverPort);
-  console.log(`Demo Server running on port ${config.serverPort}`);
+  http.createServer(app).listen(config.port);
+  console.log(`Demo Server running on port ${config.port}`);
 } catch (e) {
   console.log(e);
 }

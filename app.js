@@ -3,7 +3,7 @@ const fs = require("fs");
 const bodyParser = require("body-parser");
 const sigMan = require("./lib/signatureManager");
 
-const config = process.env.CONFIG;
+const config = JSON.parse(process.env.CONFIG);
 
 const depositDataPath =
   process.env.IS_TEST === "true"
