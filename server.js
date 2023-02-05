@@ -1,6 +1,5 @@
 const http = require("http");
 const fs = require("fs");
-const app = require("./app");
 
 if (process.env.IS_TEST === "true") {
   process.env.PUB_KEY = fs.readFileSync("./tests/keys/pub.pem");
@@ -10,7 +9,9 @@ if (process.env.IS_TEST === "true") {
   process.env.CONFIG = require("./config");
 }
 
-const config = process.env.CONFIG;
+const app = require("./app");
+
+const config = JSON.parse(process.env.CONFIG);
 
 try {
   http.createServer(app).listen(config.serverPort);
