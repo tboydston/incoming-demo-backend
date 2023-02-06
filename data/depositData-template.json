@@ -1,0 +1,10 @@
+{
+  "BTC": {
+    "chainHeight": 0,
+    "highestDepositBlock": 0,
+    "lastBlockTime": 0,
+    "lastDepositTime": 0,
+    "addresses": [],
+    "deposits": []
+  }
+}
