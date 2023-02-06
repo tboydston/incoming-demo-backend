@@ -3,3 +3,4 @@ keys/**
 !.gitkeep
 .DS_Store
 tests/data/depositData.json
+config.js
