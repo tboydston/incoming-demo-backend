@@ -14,16 +14,11 @@ const app = require("./app");
 const config = JSON.parse(process.env.CONFIG);
 
 (async () => {
-  try {
-    await fs.promises.access(config.dataPath);
-  } catch (err) {
+  if (!fs.existsSync(config.dataPath)) {
     console.log(
       `Deposit data doesn't exist at ${config.dataPath}. Attempting to create it from template...`
     );
-    await fs.promises.copyFile(
-      "./data/depositData-template.json",
-      config.dataPath
-    );
+    fs.copyFileSync("./data/depositData-template.json", config.dataPath);
   }
 
   try {
