@@ -150,6 +150,9 @@ app.post("/deposits", async (req, res) => {
   try {
     if (depositData[data.coin].deposits.length > 0) {
       data.txData.forEach((newDeposit) => {
+        if (newDeposit.block === undefined) {
+          newDeposit.block = "unconfirmed"; // eslint-disable-line
+        }
         let depositExists = false;
         for (let i = 0; i < depositData[data.coin].deposits.length; i += 1) {
           const oldDeposit = depositData[data.coin].deposits[i];
@@ -160,6 +163,7 @@ app.post("/deposits", async (req, res) => {
             depositData[data.coin].deposits[i].confirmations =
               newDeposit.confirmations;
             depositExists = true;
+            depositData[data.coin].deposits[i].block = newDeposit.block;
           }
         }
         if (depositExists === false) {
@@ -190,6 +194,10 @@ app.post("/deposits", async (req, res) => {
     depositData[data.coin].highestDepositBlock = highestDepositBlock;
     depositData[data.coin].lastBlockTime = Date.now();
     depositData[data.coin].chainHeight = data.chainHeight;
+
+    depositData[data.coin].deposits.sort((a, b) => {
+      return a.confirmations - b.confirmations;
+    });
 
     fs.writeFileSync(depositDataPath, JSON.stringify(depositData, null, 2));
   } catch (e) {

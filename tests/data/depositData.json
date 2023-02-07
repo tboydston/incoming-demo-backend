@@ -2,8 +2,8 @@
   "BTC": {
     "chainHeight": 739526,
     "highestDepositBlock": 739527,
-    "lastBlockTime": 1675331639537,
-    "lastDepositTime": 1675331639537,
+    "lastBlockTime": 1675752109715,
+    "lastDepositTime": 1675752109715,
     "addresses": [
       {
         "xPubHash": "93f50d6676288093c9f58becad57fd65aa12ae70ccd961039dec0ebb080a9868",
