@@ -184,11 +184,11 @@ app.post("/deposits", async (req, res) => {
     );
 
     if (highestDepositBlock > depositData[data.coin].highestDepositBlock) {
-      depositData[data.coin].lastBlockTime = Date.now();
+      depositData[data.coin].lastDepositTime = Date.now();
     }
 
     depositData[data.coin].highestDepositBlock = highestDepositBlock;
-    depositData[data.coin].lastDepositTime = Date.now();
+    depositData[data.coin].lastBlockTime = Date.now();
     depositData[data.coin].chainHeight = data.chainHeight;
 
     fs.writeFileSync(depositDataPath, JSON.stringify(depositData, null, 2));
