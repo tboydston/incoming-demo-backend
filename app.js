@@ -196,6 +196,14 @@ app.post("/deposits", async (req, res) => {
     depositData[data.coin].chainHeight = data.chainHeight;
 
     depositData[data.coin].deposits.sort((a, b) => {
+      if (a.block === 0) {
+        return -1;
+      }
+
+      if (b.block === 0) {
+        return 1;
+      }
+
       return b.block - a.block;
     });
 
