@@ -413,7 +413,7 @@ app.post("/validate/deposits", async (req, res) => {
     status: "success",
     message: null,
     data: {
-      formatedDeposits,
+      deposits: formatedDeposits,
     },
   });
 });

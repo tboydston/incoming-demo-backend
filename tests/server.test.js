@@ -219,7 +219,7 @@ describe("POST /validate/deposits", () => {
       .send(JSON.parse(signedData.data))
       .expect(httpStatus.OK);
 
-    expect(response.body.data.formatedDeposits).toStrictEqual(formDeposits);
+    expect(response.body.data.deposits).toStrictEqual(formDeposits);
   });
 });
 
