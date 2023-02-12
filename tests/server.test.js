@@ -1,6 +1,7 @@
 const request = require("supertest");
 const httpStatus = require("http-status");
 const fs = require("fs");
+const crypto = require("crypto");
 
 process.env.IS_TEST = true;
 process.env.PUB_KEY = fs.readFileSync("./tests/keys/pub.pem");
@@ -37,7 +38,7 @@ const demoAddresses = {
   addresses: [
     {
       xPubHash:
-        "93f50d6676288093c9f58becad57fd65aa12ae70ccd961039dec0ebb080a9868",
+        "93f50d6676288093c9f58bec4e57fd65aa12ae70ccd961039dec0ebb080a9868",
       index: 1,
       path: "m/84'/0'/0'/0/1",
       address: "bc1qcp0t2g0s7m6gul7wmuq4q4xjusrz7q5uhutest",
@@ -66,7 +67,6 @@ const demoDeposits = {
       address: "bc1q46y8dujhdy4wl52m4xlkdarp6uvlj280rtest1",
       amount: 1.0201,
       confirmations: 0,
-      block: 739432,
       txid: "bf0980ef2b56288570535f6e34e84da57704657a0aa77669c34a48dcatesttest5",
     },
     {
@@ -75,7 +75,6 @@ const demoDeposits = {
       address: "bc1q46y8dujhsy4wl52m4xlkdarp6uvlj280rktest",
       amount: 1.0001,
       confirmations: 0,
-      block: 739526,
       txid: "bf0980ef2b56288570535f6e34e84da57704657a0aa77669c34a48dcadfftest",
     },
     {
@@ -121,6 +120,106 @@ describe("POST /deposits", () => {
       .set("Signature", signedData.signature)
       .send(JSON.parse(signedData.data))
       .expect(httpStatus.OK);
+  });
+});
+
+describe("POST /validate/addresses", () => {
+  test("Expect returned hash to match locally calculated hash when validating by hash.", async () => {
+    let validationString = "";
+
+    demoAddresses.addresses.forEach((address) => {
+      validationString += `${address.index},${address.address},`;
+    });
+
+    const validationHash = crypto
+      .createHash("sha256")
+      .update(validationString)
+      .digest("hex");
+
+    const unsignedData = {
+      nonce: Date.now(),
+      data: {
+        xPubHash: demoAddresses.addresses[0].xPubHash,
+        validationType: "hash",
+        startIndex: 1,
+        endIndex: 2,
+      },
+    };
+
+    const signedData = await sigMan.sign(privKey, JSON.stringify(unsignedData));
+
+    const response = await request(app)
+      .post("/validate/addresses")
+      .set("Signature", signedData.signature)
+      .send(JSON.parse(signedData.data))
+      .expect(httpStatus.OK);
+
+    expect(response.body.data.hash).toBe(validationHash);
+  });
+  test("Expect returned addresses to match stored addresses when validating by address.", async () => {
+    const addObj = {};
+    let index = 1;
+    demoAddresses.addresses.forEach((address) => {
+      addObj[index] = address.address;
+      index += 1;
+    });
+
+    const unsignedData = {
+      nonce: Date.now(),
+      data: {
+        xPubHash: demoAddresses.addresses[0].xPubHash,
+        validationType: "address",
+        startIndex: 1,
+        endIndex: 2,
+      },
+    };
+
+    const signedData = await sigMan.sign(privKey, JSON.stringify(unsignedData));
+
+    const response = await request(app)
+      .post("/validate/addresses")
+      .set("Signature", signedData.signature)
+      .send(JSON.parse(signedData.data))
+      .expect(httpStatus.OK);
+    expect(response.body.data.addresses).toStrictEqual(addObj);
+  });
+});
+
+describe("POST /validate/deposits", () => {
+  test("Should add new deposits to tests/data/depositData.json", async () => {
+    const formDeposits = {};
+
+    const trunDeposits = [demoDeposits.txData[0], demoDeposits.txData[1]];
+
+    trunDeposits[0].block = 0;
+    trunDeposits[1].block = 0;
+
+    trunDeposits.forEach((deposit) => {
+      if (formDeposits[deposit.txid] === undefined) {
+        formDeposits[deposit.txid] = {};
+      }
+
+      formDeposits[deposit.txid][deposit.address] = deposit.amount;
+    });
+
+    const unsignedData = {
+      nonce: Date.now(),
+      data: {
+        xPubHash: demoAddresses.addresses[0].xPubHash,
+        startBlock: 1,
+        endBlock: 999999,
+      },
+    };
+
+    const signedData = await sigMan.sign(privKey, JSON.stringify(unsignedData));
+
+    const response = await request(app)
+      .post("/validate/deposits")
+      .set("Signature", signedData.signature)
+      .send(JSON.parse(signedData.data))
+      .expect(httpStatus.OK);
+
+    expect(response.body.data.formatedDeposits).toStrictEqual(formDeposits);
   });
 });
 

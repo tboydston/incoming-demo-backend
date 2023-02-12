@@ -1,5 +1,6 @@
 const express = require("express");
 const fs = require("fs");
+const crypto = require("crypto");
 const bodyParser = require("body-parser");
 const sigMan = require("./lib/signatureManager");
 
@@ -148,31 +149,27 @@ app.post("/deposits", async (req, res) => {
   }
 
   try {
-    if (depositData[data.coin].deposits.length > 0) {
-      data.txData.forEach((newDeposit) => {
-        if (newDeposit.block === undefined) {
-          newDeposit.block = 0; // eslint-disable-line
+    data.txData.forEach((newDeposit) => {
+      if (newDeposit.block === undefined) {
+        newDeposit.block = 0; // eslint-disable-line
+      }
+      let depositExists = false;
+      for (let i = 0; i < depositData[data.coin].deposits.length; i += 1) {
+        const oldDeposit = depositData[data.coin].deposits[i];
+        if (
+          oldDeposit.address === newDeposit.address &&
+          oldDeposit.txid === newDeposit.txid
+        ) {
+          depositData[data.coin].deposits[i].confirmations =
+            newDeposit.confirmations;
+          depositExists = true;
+          depositData[data.coin].deposits[i].block = newDeposit.block;
         }
-        let depositExists = false;
-        for (let i = 0; i < depositData[data.coin].deposits.length; i += 1) {
-          const oldDeposit = depositData[data.coin].deposits[i];
-          if (
-            oldDeposit.address === newDeposit.address &&
-            oldDeposit.txid === newDeposit.txid
-          ) {
-            depositData[data.coin].deposits[i].confirmations =
-              newDeposit.confirmations;
-            depositExists = true;
-            depositData[data.coin].deposits[i].block = newDeposit.block;
-          }
-        }
-        if (depositExists === false) {
-          depositData[data.coin].deposits.push(newDeposit);
-        }
-      });
-    } else {
-      depositData[data.coin].deposits = data.txData;
-    }
+      }
+      if (depositExists === false) {
+        depositData[data.coin].deposits.push(newDeposit);
+      }
+    });
 
     let highestDepositBlock = 0;
 
@@ -195,18 +192,6 @@ app.post("/deposits", async (req, res) => {
     depositData[data.coin].lastBlockTime = Date.now();
     depositData[data.coin].chainHeight = data.chainHeight;
 
-    depositData[data.coin].deposits.sort((a, b) => {
-      if (a.block === 0) {
-        return -1;
-      }
-
-      if (b.block === 0) {
-        return 1;
-      }
-
-      return b.block - a.block;
-    });
-
     fs.writeFileSync(depositDataPath, JSON.stringify(depositData, null, 2));
   } catch (e) {
     console.log(`Error adding new deposits: ${e.message}`);
@@ -226,12 +211,287 @@ app.post("/deposits", async (req, res) => {
   return true;
 });
 
+// Validate Deposit Addresses.
+app.post("/validate/addresses", async (req, res) => {
+  const validationTypes = ["hash", "address"];
+  let validRequest = true;
+  let reqData = {};
+
+  // This is basic validation for this example. In a live environment this should be replaced with something more robust.
+  try {
+    reqData = JSON.parse(req.body).data;
+  } catch (e) {
+    validRequest = false;
+  }
+
+  if (
+    reqData.xPubHash === undefined ||
+    reqData.validationType === undefined ||
+    reqData.xPubHash.length !== 64 ||
+    !validationTypes.includes(reqData.validationType) ||
+    Number.isNaN(reqData.startIndex) ||
+    Number.isNaN(reqData.endIndex)
+  ) {
+    validRequest = false;
+  }
+
+  if (validRequest === false) {
+    res.status(400).send({
+      status: "fail",
+      message:
+        "Invalid request. Body must include data object with xPubHash, validationType, startIndex, and endIndex.",
+      data: null,
+    });
+    return;
+  }
+
+  let depositsAddress = [];
+
+  try {
+    // eslint-disable-next-line
+    for (const [key, value] of Object.entries(depositData)) {
+      if (depositData[key].addresses[0].xPubHash === reqData.xPubHash) {
+        depositsAddress = depositData[key].addresses;
+      }
+    }
+
+    if (depositsAddress.length === 0) {
+      console.log(`xPubHash ${reqData.xPubHash} does not exists.`);
+      res.status(500).send({
+        status: "fail",
+        message: "xPubHash does not exists.",
+        data: null,
+      });
+      return;
+    }
+  } catch (e) {
+    console.log("Error finding xPubHash. Raw Error:", e);
+    res.status(500).send({
+      status: "fail",
+      message: "Deposit data structure invalid.",
+      data: null,
+    });
+    return;
+  }
+
+  // Request to validate deposit addresses by hash.
+  if (reqData.validationType === "hash") {
+    let addressHash = "";
+
+    try {
+      addressHash = await getAddressHash(
+        depositsAddress,
+        reqData.startIndex,
+        reqData.endIndex
+      );
+    } catch (e) {
+      console.log("Error generating address hash. Raw Error:", e);
+      res.status(500).send({
+        status: "fail",
+        message: "Unknown Error",
+        data: null,
+      });
+      return;
+    }
+
+    res.status(200).send({
+      status: "success",
+      message: null,
+      data: {
+        hash: addressHash,
+      },
+    });
+  }
+
+  if (reqData.validationType === "address") {
+    let addresses = {};
+
+    try {
+      addresses = await getAddresses(
+        depositsAddress,
+        reqData.startIndex,
+        reqData.endIndex
+      );
+    } catch (e) {
+      console.log("Error generating addresses. Raw Error:", e);
+      res.status(500).send({
+        status: "fail",
+        message: "Unknown Error",
+        data: null,
+      });
+      return;
+    }
+
+    res.status(200).send({
+      status: "success",
+      message: null,
+      data: {
+        addresses,
+      },
+    });
+  }
+});
+
+// Validate Deposits.
+app.post("/validate/deposits", async (req, res) => {
+  let validRequest = true;
+  let reqData = {};
+
+  // This is basic validation for this example. In a live environment this should be replaced with something more robust.
+  try {
+    reqData = JSON.parse(req.body).data;
+  } catch (e) {
+    validRequest = false;
+  }
+
+  if (
+    reqData.xPubHash === undefined ||
+    reqData.xPubHash.length !== 64 ||
+    Number.isNaN(reqData.startBlock) ||
+    Number.isNaN(reqData.endBlock)
+  ) {
+    validRequest = false;
+  }
+
+  if (validRequest === false) {
+    res.status(400).send({
+      status: "fail",
+      message:
+        "Invalid request. Body must include data object with xPubHash, startBlock, and endBlock.",
+      data: null,
+    });
+    return;
+  }
+
+  let deposits = {};
+  let formatedDeposits = {};
+
+  try {
+    // eslint-disable-next-line
+    for (const [key, value] of Object.entries(depositData)) {
+      if (depositData[key].deposits[0].xPubHash === reqData.xPubHash) {
+        deposits = depositData[key].deposits;
+      }
+    }
+
+    if (Object.keys(deposits).length === 0) {
+      console.log(`xPubHash ${reqData.xPubHash} does not exists.`);
+      res.status(500).send({
+        status: "fail",
+        message: "xPubHash does not exists.",
+        data: null,
+      });
+      return;
+    }
+  } catch (e) {
+    console.log("Error finding xPubHash. Raw Error:", e);
+    res.status(500).send({
+      status: "fail",
+      message: "Deposit data structure invalid.",
+      data: null,
+    });
+    return;
+  }
+
+  try {
+    formatedDeposits = await getDeposits(
+      deposits,
+      reqData.startBlock,
+      reqData.endBlock
+    );
+  } catch (e) {
+    console.log(e);
+    res.status(500).send({
+      status: "fail",
+      message: "Unknown Error",
+      data: null,
+    });
+    return;
+  }
+
+  res.status(200).send({
+    status: "success",
+    message: null,
+    data: {
+      formatedDeposits,
+    },
+  });
+});
+
+async function getAddressHash(addresses, startIndex, endIndex) {
+  let validationString = "";
+
+  addresses.forEach((address) => {
+    if (address.index >= startIndex && address.index <= endIndex) {
+      validationString += `${address.index},${address.address},`;
+    }
+  });
+
+  const validationHash = crypto
+    .createHash("sha256")
+    .update(validationString)
+    .digest("hex");
+
+  return validationHash;
+}
+
+async function getAddresses(allAddresses, startIndex, endIndex) {
+  const addresses = [];
+
+  allAddresses.forEach((address) => {
+    if (address.index >= startIndex && address.index <= endIndex) {
+      addresses.push(address);
+    }
+  });
+
+  const addObj = {};
+
+  let index = startIndex;
+  addresses.forEach((address) => {
+    addObj[index] = address.address;
+    index += 1;
+  });
+
+  return addObj;
+}
+
+async function getDeposits(deposits, startBlock, endBlock) {
+  // Format wallet transactions.
+  const formDeposits = {};
+
+  deposits.forEach((deposit) => {
+    // Exclude deposits outside of range.
+    if (deposit.blockheight < startBlock || deposit.blockheight > endBlock) {
+      return;
+    }
+
+    if (formDeposits[deposit.txid] === undefined) {
+      formDeposits[deposit.txid] = {};
+    }
+
+    formDeposits[deposit.txid][deposit.address] = deposit.amount;
+  });
+
+  return formDeposits;
+}
+
 function trimArray(arr, length) {
   if (arr.length <= length) {
     return arr;
   }
-  arr.sort((a, b) => a - b);
-  arr.splice(0, arr.length - length);
+  arr.sort((a, b) => {
+    if (a.block === 0) {
+      return -1;
+    }
+
+    if (b.block === 0) {
+      return 1;
+    }
+
+    return b.block - a.block;
+  });
+
+  arr.splice(-(arr.length - length), arr.length - length);
   return arr;
 }
 

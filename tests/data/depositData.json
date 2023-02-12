@@ -2,11 +2,11 @@
   "BTC": {
     "chainHeight": 739526,
     "highestDepositBlock": 739527,
-    "lastBlockTime": 1675752109715,
-    "lastDepositTime": 1675752109715,
+    "lastBlockTime": 1676167643733,
+    "lastDepositTime": 1676167643733,
     "addresses": [
       {
-        "xPubHash": "93f50d6676288093c9f58becad57fd65aa12ae70ccd961039dec0ebb080a9868",
+        "xPubHash": "93f50d6676288093c9f58bec4e57fd65aa12ae70ccd961039dec0ebb080a9868",
         "index": 1,
         "path": "m/84'/0'/0'/0/1",
         "address": "bc1qcp0t2g0s7m6gul7wmuq4q4xjusrz7q5uhutest",
@@ -26,16 +26,16 @@
         "address": "bc1q46y8dujhsy4wl52m4xlkdarp6uvlj280rktest",
         "amount": 1.0001,
         "confirmations": 0,
-        "block": 739526,
-        "txid": "bf0980ef2b56288570535f6e34e84da57704657a0aa77669c34a48dcadfftest"
+        "txid": "bf0980ef2b56288570535f6e34e84da57704657a0aa77669c34a48dcadfftest",
+        "block": 0
       },
       {
         "xPubHash": "93f50d6676288093c9f58bec4e57fd65aa12ae70ccd961039dec0ebb080a9868",
-        "address": "bc1ql2vsmnjmzkj7adqkf4d9hehgfmj4c8a8vstest",
-        "amount": 2.3422,
-        "confirmations": 1,
-        "block": 739527,
-        "txid": "541d5beb1f5a79bcfbebfbfab0f30dcc0595e73f15c335ada78bc70197ectest"
+        "address": "bc1q46y8dujhdy4wl52m4xlkdarp6uvlj280rtest1",
+        "amount": 1.0201,
+        "confirmations": 0,
+        "txid": "bf0980ef2b56288570535f6e34e84da57704657a0aa77669c34a48dcatesttest5",
+        "block": 0
       }
     ]
   }
